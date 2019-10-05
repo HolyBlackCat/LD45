@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <iostream>
 
 #include "audio/complete.h"

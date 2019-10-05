@@ -4,6 +4,8 @@ constexpr ivec2 screen_size(480, 270);
 Interface::Window window("LD45", screen_size * 2, Interface::windowed, adjust_(Interface::WindowSettings{}, min_size = screen_size));
 Graphics::DummyVertexArray dummy_vao = nullptr;
 
+Audio::Context audio_context = nullptr;
+
 Input::Mouse mouse;
 
 Random random(std::time(0));
@@ -19,13 +21,38 @@ AdaptiveViewport adaptive_viewport(shader_config, screen_size);
 using Renderer = Graphics::Renderers::Flat;
 Renderer r(shader_config, 1000);
 
+Graphics::Font font_main;
+Graphics::FontFile font_file_main("assets/CatIV15.ttf", 15);
+
 ReflectStruct(Sprites, (
     (Graphics::TextureAtlas::Region)(font_storage,tiles,player,sky,vignette),
 ))
 Sprites sprites;
 
-Graphics::Font font_main;
-Graphics::FontFile font_file_main("assets/CatIV15.ttf", 15);
+namespace Sounds
+{
+    #define SOUND_LIST(x) \
+        x( jump       , 0.4 ) \
+        x( land       , 0.4 ) \
+        x( land_metal , 0.2 ) \
+
+    #define X(name, random_pitch) \
+        Audio::Buffer _buffer_##name(Audio::Sound(Audio::wav, Audio::mono, "assets/sounds/" #name ".wav")); \
+        Audio::Source name(fvec2 pos, float vol = 1, float pitch = 1)                                       \
+        {                                                                                                   \
+            pitch = std::pow(2, std::log2(pitch) + float(-random_pitch <= random.real() <= random_pitch));  \
+            return Audio::Source(_buffer_##name).temporary().volume(vol).pitch(pitch).pos(pos);             \
+        }                                                                                                   \
+        Audio::Source name(float vol = 1, float pitch = 1)                                                  \
+        {                                                                                                   \
+            return name(fvec2(0), vol, pitch).relative();                                                   \
+        }                                                                                                   \
+
+    SOUND_LIST(X)
+    #undef X
+
+    #undef SOUND_LIST
+}
 
 ReflectStruct(Controls, (
     (Input::Button)(left)(=Input::a),
@@ -464,6 +491,57 @@ class SubpixelPos
     }
 };
 
+struct Particle
+{
+    fvec2 pos{};
+    fvec2 vel{};
+    fvec2 acc{};
+    fvec3 color = fvec3(1);
+    float alpha = 1;
+    float beta = 1;
+    float size = 8;
+    int current_time = 0;
+    int mid_time = 30;
+    int max_time = 60;
+};
+
+class ParticleController
+{
+    std::deque<Particle> particles;
+
+  public:
+    ParticleController() {}
+
+    void Add(const Particle &particle)
+    {
+        particles.push_back(particle);
+    }
+
+    void Tick()
+    {
+        for (Particle &p : particles)
+        {
+            p.vel += p.acc;
+            p.pos += p.vel;
+            p.current_time++;
+        }
+
+        // Remove dead particles
+        particles.erase(std::remove_if(particles.begin(), particles.end(), [](const Particle &p){return p.current_time >= p.max_time;}), particles.end());
+    }
+
+    void Render(ivec2 camera_pos) const
+    {
+        for (const Particle &p : particles)
+        {
+            float t = min(p.current_time / float(p.mid_time), 1 - (p.current_time - p.mid_time) / float(p.max_time - p.mid_time));
+            float cur_size = smoothstep(t) * p.size;
+
+            r << r.translate(p.pos - camera_pos) * r.UntexturedQuad(fvec2(cur_size)).Centered().Color(p.color).Opacity(p.alpha, p.beta);
+        }
+    }
+};
+
 struct Player
 {
     inline static const Hitbox hitbox = Hitbox(ivec2(10, 19));
@@ -498,6 +576,8 @@ namespace States
         Player p;
         World w;
         Map map;
+        ParticleController par;
+
         int current_map_index = 0;
 
         Game()
@@ -517,27 +597,54 @@ namespace States
 
         void Tick() override
         {
-            static float gravity = 9, jump_speed = 290, vel_cap_soft_up = 120, vel_cap_x = 150, vel_cap_y = 250,
-                walk_speed = 90, walk_acc = 10, walk_acc_air = 8, walk_dec_fac = 0.75, walk_dec_fac_air = 0.9;
+            static constexpr float gravity_subpixel = 9, jump_speed = 290, vel_cap_soft_up = 120, vel_cap_x = 150, vel_cap_y = 250,
+                walk_speed = 90, walk_acc = 10, walk_acc_air = 8, walk_dec_fac = 0.75, walk_dec_fac_air = 0.9,
+                particle_gravity = 0.01;
 
-            ImGui::InputFloat("gravity", &gravity, 1, 10);
-            ImGui::InputFloat("jump", &jump_speed, 1, 10);
-            ImGui::InputFloat("vel cap soft up", &vel_cap_soft_up, 1, 10);
-            ImGui::InputFloat("vel cap x", &vel_cap_x, 1, 10);
-            ImGui::InputFloat("vel cap y", &vel_cap_y, 1, 10);
-            ImGui::InputFloat("walk", &walk_speed, 1, 10);
-            ImGui::InputFloat("walk acc", &walk_acc, 1, 10);
-            ImGui::InputFloat("walk acc air", &walk_acc_air, 1, 10);
-            ImGui::InputFloat("walk dec fac", &walk_dec_fac, 0.01, 0.1);
-            ImGui::InputFloat("walk dec fac air", &walk_dec_fac_air, 0.01, 0.1);
+            // ImGui::InputFloat("gravity_subpixel", &gravity_subpixel, 1, 10);
+            // ImGui::InputFloat("jump", &jump_speed, 1, 10);
+            // ImGui::InputFloat("vel cap soft up", &vel_cap_soft_up, 1, 10);
+            // ImGui::InputFloat("vel cap x", &vel_cap_x, 1, 10);
+            // ImGui::InputFloat("vel cap y", &vel_cap_y, 1, 10);
+            // ImGui::InputFloat("walk", &walk_speed, 1, 10);
+            // ImGui::InputFloat("walk acc", &walk_acc, 1, 10);
+            // ImGui::InputFloat("walk acc air", &walk_acc_air, 1, 10);
+            // ImGui::InputFloat("walk dec fac", &walk_dec_fac, 0.01, 0.1);
+            // ImGui::InputFloat("walk dec fac air", &walk_dec_fac_air, 0.01, 0.1);
 
 
             // ImGui::ShowDemoWindow();
 
 
             { // Player
-                // Check for ground
-                p.ground = p.hitbox.IsSolidAt(map.layer_mid, p.pos.Value() with(y += 1));
+                { // Check for ground
+                    bool old_ground = p.ground;
+                    p.ground = p.hitbox.IsSolidAt(map.layer_mid, p.pos.Value() with(y += 1));
+
+                    // Landing effects
+                    if (!old_ground && p.ground)
+                    {
+                        Tile tile = map.GetTileMid(Map::PixelToTilePos(p.pos.Value() with(y += p.hitbox.half_extent.y + 2)));
+                        if (tile == Tile::beam_h || tile == Tile::beam_v)
+                            Sounds::land_metal();
+                        else
+                            Sounds::land();
+
+                        for (int i = 0; i < 8; i++)
+                        {
+                            par.Add(adjust(Particle{},
+                                pos = p.pos.Value() with(y += p.hitbox.half_extent.y),
+                                vel = fvec2::dir(f_pi / 12 <= random.real() <= f_pi / 3, 0.05 <= random.real() <= 0.4) with(x *= random.sign(), y *= -1),
+                                acc = fvec2(0,particle_gravity),
+                                current_time = 0,
+                                mid_time = 5,
+                                max_time = 40 <= random.integer() <= 60,
+                                size = 1 <= random.real() <= 5,
+                                color = fvec3(0.85 <= random.real() <= 1)
+                            ));
+                        }
+                    }
+                }
 
                 // Walk
                 p.hc = controls.right.down() - controls.left.down();
@@ -557,13 +664,31 @@ namespace States
 
                 // Jump
                 if (controls.jump.pressed())
+                {
                     p.vel_subpixel.y = -jump_speed;
+                    Sounds::jump();
+
+                    for (int i = 0; i < 8; i++)
+                    {
+                        par.Add(adjust(Particle{},
+                            pos = p.pos.Value() with(y += p.hitbox.half_extent.y),
+                            vel = fvec2::dir(f_pi / 12 <= random.real() <= f_pi / 3, 0.05 <= random.real() <= 0.4) with(x *= random.sign(), y *= -1),
+                            acc = fvec2(0,particle_gravity),
+                            current_time = 0,
+                            mid_time = 5,
+                            max_time = 40 <= random.integer() <= 60,
+                            size = 1 <= random.real() <= 5,
+                            color = fvec3(0.85 <= random.real() <= 1)
+                        ));
+                    }
+                }
+
                 if (controls.jump.released() && p.vel_subpixel.y)
                     clamp_var_min(p.vel_subpixel.y, -vel_cap_soft_up);
 
 
                 // Apply gravity
-                p.vel_subpixel.y += gravity;
+                p.vel_subpixel.y += gravity_subpixel;
 
                 // Clamp velocity
                 clamp_var(p.vel_subpixel, -ivec2(vel_cap_x, vel_cap_y), ivec2(vel_cap_x, vel_cap_y));
@@ -589,7 +714,16 @@ namespace States
                 }
             }
 
-            w.camera_pos.Set(p.pos.Value());
+            { // Camera
+                w.camera_pos.Set(p.pos.Value());
+
+                Audio::Listener::Position(w.camera_pos.Value().to_vec3(-3 * screen_size.x/2));
+                Audio::Listener::Orientation(fvec3(0,0,1), fvec3(0,-1,0));
+            }
+
+            { // Particles
+                par.Tick();
+            }
         }
 
         void Render() const override
@@ -649,6 +783,9 @@ namespace States
                 r << r.translate(p.pos.Value() - w.camera_pos.Value() + ivec2(0,-1)) * r.flip_x(p.facing_left)
                    * r.TexturedQuad(sprites.player.region(player_sprite_size * ivec2(anim_frame, anim_state), player_sprite_size)).Centered();
             }
+
+            // Particles
+            par.Render(w.camera_pos.Value());
 
             // Map (front)
             map.RenderLayerMid(w.camera_pos.Value(), true);
@@ -710,6 +847,12 @@ int ENTRY_POINT(int, char **)
             gui_controller.RenderFontsWithFreetype();
         }
 
+        { // Audio
+            Audio::Source::DefaultRefDistance(4 * screen_size.x / 2);
+            Audio::Source::DefaultMaxDistance(4 * screen_size.x / 2);
+            Audio::Source::DefaultRolloffFactor(1);
+        }
+
         Map::LoadAllMaps();
     }
 
@@ -744,6 +887,7 @@ int ENTRY_POINT(int, char **)
 
             gui_controller.PreTick();
             States::current_state->Tick();
+            audio_context.Tick();
         }
 
         gui_controller.PreRender();

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!DOCTYPE lmms-project>
+<lmms-project creator="LMMS" version="1.0" type="song" creatorversion="1.2.0">
+  <head timesig_numerator="4" timesig_denominator="4" bpm="140" masterpitch="0" mastervol="100"/>
+  <song>
+    <trackcontainer y="5" width="836" height="300" visible="1" maximized="0" type="song" x="5" minimized="0">
+      <track y="323" width="262" name="Mallets" tab="1" height="467" muted="0" visible="1" maximized="0" type="0" x="32" solo="0" minimized="0">
+        <instrumenttrack pan="0" usemasterpitch="1" vol="100" pitchrange="1" basenote="68" pitch="0" fxch="0">
+          <instrument name="malletsstk">
+            <malletsstk modulator="64" crossfade="64" velocity="64" oldversion="0" stick_mix="0" vib_gain="0" lfo_depth="64" position="64" pressure="64" strike="1" hardness="128" preset="7" version="1" vib_freq="0" lfo_speed="64" adsr="64" spread="0"/>
+          </instrument>
+          <eldata fres="0.47" fwet="1" ftype="0" fcut="1256">
+            <elvol ctlenvamt="0" latt="0" lamt="0" lspd_denominator="4" lspd_syncmode="0" dec="0.5" hold="0.5" amt="1" lshp="0" lpdel="0" lspd_numerator="4" lspd="0.1" att="0.02" userwavefile="" x100="0" sustain="0.5" pdel="0" rel="0.1"/>
+            <elcut ctlenvamt="0" latt="0" lamt="0" lspd_denominator="4" lspd_syncmode="0" dec="0.5" hold="0.5" amt="0" lshp="0" lpdel="0" lspd_numerator="4" lspd="0.1" att="0" userwavefile="" x100="0" sustain="0.5" pdel="0" rel="0.1"/>
+            <elres ctlenvamt="0" latt="0" lamt="0" lspd_denominator="4" lspd_syncmode="0" dec="0.5" hold="0.5" amt="0" lshp="0" lpdel="0" lspd_numerator="4" lspd="0.1" att="0" userwavefile="" x100="0" sustain="0.5" pdel="0" rel="0.1"/>
+          </eldata>
+          <chordcreator chordrange="1" chord-enabled="0" chord="0"/>
+          <arpeggiator arpdir="0" arpskip="0" arpmode="0" arp-enabled="0" arpmiss="0" arpcycle="0" arptime_numerator="4" arp="0" arprange="1" arpgate="100" arptime_syncmode="0" arptime_denominator="4" arptime="200"/>
+          <midiport basevelocity="63" fixedinputvelocity="-1" fixedoutputvelocity="-1" outputprogram="1" fixedoutputnote="-1" outputcontroller="0" outputchannel="1" inputcontroller="0" readable="0" writable="0" inputchannel="0"/>
+          <fxchain numofeffects="0" enabled="0"/>
+        </instrumenttrack>
+        <pattern steps="16" name="Mallets" pos="0" muted="0" type="1">
+          <note pan="0" key="38" vol="100" len="96" pos="0"/>
+        </pattern>
+      </track>
+    </trackcontainer>
+    <track name="Automation track" muted="0" type="6" solo="0">
+      <automationtrack/>
+      <automationpattern len="192" name="Numerator" mute="0" tens="1" prog="0" pos="0"/>
+      <automationpattern len="192" name="Denominator" mute="0" tens="1" prog="0" pos="0"/>
+      <automationpattern len="192" name="Tempo" mute="0" tens="1" prog="0" pos="0"/>
+      <automationpattern len="192" name="Master volume" mute="0" tens="1" prog="0" pos="0"/>
+      <automationpattern len="192" name="Master pitch" mute="0" tens="1" prog="0" pos="0"/>
+    </track>
+    <fxmixer y="323" width="543" height="333" visible="1" maximized="0" x="330" minimized="0">
+      <fxchannel soloed="0" name="Master" volume="1" muted="0" num="0">
+        <fxchain numofeffects="0" enabled="0"/>
+      </fxchannel>
+    </fxmixer>
+    <ControllerRackView y="327" width="350" height="200" visible="1" maximized="0" x="896" minimized="0"/>
+    <pianoroll y="5" width="860" height="480" visible="1" maximized="0" x="5" minimized="0"/>
+    <automationeditor y="1" width="860" height="400" visible="0" maximized="0" x="1" minimized="0"/>
+    <projectnotes y="10" width="687" height="400" visible="0" maximized="0" x="700" minimized="0"><![CDATA[<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+p, li { white-space: pre-wrap; }
+</style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;">
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html>]]></projectnotes>
+    <timeline lpstate="0" lp1pos="192" lp0pos="0"/>
+    <controllers/>
+  </song>
+</lmms-project>
