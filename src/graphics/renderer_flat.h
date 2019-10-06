@@ -29,8 +29,10 @@ namespace Graphics::Renderers
             (
                 (fvec2)(pos)(={}),
                 (fvec2)(texcoord)(={}),
-                (NormalizedAttribute<u8vec4>)(color)(={}),
-                (NormalizedAttribute<u8vec3>)(factors)(={}),
+                (fvec4)(color)(={}),
+                (fvec3)(factors)(={}),
+                // (NormalizedAttribute<u8vec4>)(color)(={}),
+                // (NormalizedAttribute<u8vec3>)(factors)(={}),
             )
 
             constexpr auto &GetTransformableVertexPosition()
@@ -40,13 +42,17 @@ namespace Graphics::Renderers
 
             Vertex() {}
 
-            Vertex(fvec2 pos, u8vec4 color, fvec2 texcoord, u8vec3 factors)
+            Vertex(fvec2 pos, fvec4 color, fvec2 texcoord, fvec3 factors)
                 : pos(pos), texcoord(texcoord), color{color}, factors{factors}
             {}
+            // Vertex(fvec2 pos, u8vec4 color, fvec2 texcoord, u8vec3 factors)
+            //     : pos(pos), texcoord(texcoord), color{color}, factors{factors}
+            // {}
 
             [[nodiscard]] static Vertex Raw(fvec2 pos, fvec4 color, fvec2 texcoord, fvec3 factors)
             {
-                return Vertex(pos, iround(::clamp(color) * 255), texcoord, iround(::clamp(factors) * 255));
+                return Vertex(pos, color, texcoord, factors);
+                // return Vertex(pos, iround(::clamp(color) * 255), texcoord, iround(::clamp(factors) * 255));
             }
 
             [[nodiscard]] static Vertex Color(fvec2 pos, fvec3 color, float alpha = 1, float beta = 1)

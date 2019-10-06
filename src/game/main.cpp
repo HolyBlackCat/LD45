@@ -25,7 +25,7 @@ Graphics::Font font_main;
 Graphics::FontFile font_file_main("assets/CatIV15.ttf", 15);
 
 ReflectStruct(Sprites, (
-    (Graphics::TextureAtlas::Region)(font_storage,tiles,player,sky,vignette,cursor,frame,click_me,letters,small_letters,key_enabled),
+    (Graphics::TextureAtlas::Region)(font_storage,tiles,player,sky,vignette,cursor,frame,click_me,letters,small_letters,key_enabled,bullet),
 ))
 Sprites sprites;
 
@@ -42,6 +42,8 @@ namespace Sounds
         x( powerup    , 0.2 ) \
         x( wrong_key  , 0.3 ) \
         x( checkpoint , 0.3 ) \
+        x( laser      , 0.3 ) \
+        x( laser_hit  , 0.3 ) \
 
     #define X(name, random_pitch) \
         Audio::Buffer _buffer_##name(Audio::Sound(Audio::wav, Audio::mono, "assets/sounds/" #name ".wav")); \
@@ -90,6 +92,11 @@ inline namespace Level
         button,
         opt_block,
         barrier,
+        slot_w,
+        slot_a,
+        slot_d,
+        slot_j,
+        target,
         _count,
     };
 
@@ -110,25 +117,30 @@ inline namespace Level
         bool is_mid = 0, is_bg = 0, is_wire = 0;
         bool elec = 0;
         int tex_elec = 0;
-        bool solid_exec = 0;
+        bool solid_elec = 0;
     };
 
     const TileInfo &GetTileInfo(Tile tile)
     {
         static TileInfo info_array[]
         {
-            /* air       */ adjust(TileInfo(), style = TileStyle::invis                                                                                    ),
-            /* stone     */ adjust(TileInfo(), style = TileStyle::smart, front = 1, tex = 0, solid = 1, is_mid = 1                                         ),
-            /* beam_v    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 0, solid = 1, is_mid = 1                                         ),
-            /* beam_h    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 1, solid = 1, is_mid = 1                                         ),
-            /* spike     */ adjust(TileInfo(), style = TileStyle::normal,           tex = 2, kills = 1, is_mid = 1                                         ),
-            /* bg_stone  */ adjust(TileInfo(), style = TileStyle::smart, front = 1, tex = 1,            is_bg = 1                                          ),
-            /* bg_beam_v */ adjust(TileInfo(), style = TileStyle::normal,           tex = 3,            is_bg = 1                                          ),
-            /* bg_beam_h */ adjust(TileInfo(), style = TileStyle::normal,           tex = 4,            is_bg = 1                                          ),
-            /* wire      */ adjust(TileInfo(), style = TileStyle::smart, front = 1, tex = 2,            is_wire = 1, elec = 1, tex_elec = 3                ),
-            /* button    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 5,            is_wire = 1, elec = 1, tex_elec = 6                ),
-            /* opt_block */ adjust(TileInfo(), style = TileStyle::smart,/* !front */tex = 4,            is_mid = 1,  elec = 1, tex_elec = 5, solid_exec = 1),
-            /* barrier   */ adjust(TileInfo(), style = TileStyle::invis,                     kills = 1, is_mid = 1                                         ),
+            /* air       */ adjust(TileInfo(), style = TileStyle::invis                                                                                      ),
+            /* stone     */ adjust(TileInfo(), style = TileStyle::smart, front = 1, tex = 0,  solid = 1, is_mid = 1                                          ),
+            /* beam_v    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 0,  solid = 1, is_mid = 1                                          ),
+            /* beam_h    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 1,  solid = 1, is_mid = 1                                          ),
+            /* spike     */ adjust(TileInfo(), style = TileStyle::normal,           tex = 2,  kills = 1, is_mid = 1                                          ),
+            /* bg_stone  */ adjust(TileInfo(), style = TileStyle::smart, front = 1, tex = 1,             is_bg = 1                                           ),
+            /* bg_beam_v */ adjust(TileInfo(), style = TileStyle::normal,           tex = 3,             is_bg = 1                                           ),
+            /* bg_beam_h */ adjust(TileInfo(), style = TileStyle::normal,           tex = 4,             is_bg = 1                                           ),
+            /* wire      */ adjust(TileInfo(), style = TileStyle::smart, front = 1, tex = 2,             is_wire = 1, elec = 1, tex_elec = 3                 ),
+            /* button    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 5,             is_wire = 1, elec = 1, tex_elec = 6                 ),
+            /* opt_block */ adjust(TileInfo(), style = TileStyle::smart,/* !front */tex = 4,             is_mid = 1,  elec = 1, tex_elec = 5,  solid_elec = 1),
+            /* barrier   */ adjust(TileInfo(), style = TileStyle::invis,                      kills = 1, is_mid = 1                                          ),
+            /* slot_w    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 11,            is_wire = 1, elec = 1, tex_elec = 7                 ),
+            /* slot_a    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 12,            is_wire = 1, elec = 1, tex_elec = 8                 ),
+            /* slot_d    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 13,            is_wire = 1, elec = 1, tex_elec = 9                 ),
+            /* slot_j    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 14,            is_wire = 1, elec = 1, tex_elec = 10                ),
+            /* target    */ adjust(TileInfo(), style = TileStyle::normal,           tex = 15, solid = 1, is_mid = 1,  elec = 1, tex_elec = 16, solid_elec = 1),
         };
 
         static_assert(std::extent_v<decltype(info_array)> == int(Tile::_count));
@@ -138,6 +150,11 @@ inline namespace Level
             Program::Error("Tile index is out of range.");
 
         return info_array[tile_index];
+    }
+
+    bool TileIsSlot(Tile t)
+    {
+        return t == Tile::slot_w || t == Tile::slot_a || t == Tile::slot_d || t == Tile::slot_j;
     }
 
     class Map
@@ -183,7 +200,7 @@ inline namespace Level
 
             auto IsWireLike = [](Tile t)
             {
-                return t == Tile::wire || t == Tile::button || t == Tile::opt_block;
+                return t == Tile::wire || t == Tile::button || t == Tile::opt_block || TileIsSlot(t) || t == Tile::target;
             };
 
             if (IsWireLike(a) && a != Tile::opt_block)
@@ -232,6 +249,13 @@ inline namespace Level
                                            la == &layer_wire ? info.is_wire : true;
                     if (!at_proper_layer)
                         Program::Error("In map `{}`: Tile at [{},{}] can't be at this layer."_format(file.name(), pos.x, pos.y));
+
+                    if (TileIsSlot(Tile(tile)))
+                    {
+                        bool ok = wire_elec_sources.insert(pos).second;
+                        if (!ok)
+                            Program::Error("In map `{}`: Duplicate power source at [{},{}]."_format(file.name(), pos.x, pos.y));
+                    }
                 }
             }
 
@@ -242,7 +266,7 @@ inline namespace Level
                 ivec2 tile_pos = iround(trunc(pos / tile_size));
                 bool ok = wire_elec_sources.insert(tile_pos).second;
                 if (!ok)
-                    Program::Error("In map `{}`: Duplicate power source at [{},{}]."_format(file.name(), pos.x, pos.y));
+                    Program::Error("In map `{}`: Duplicate power source at [{},{}]."_format(file.name(), tile_pos.x, tile_pos.y));
             });
 
             click_me_sign = layer_points.GetSinglePoint("click_me");
@@ -281,6 +305,14 @@ inline namespace Level
         const WireState &WireStateAt(ivec2 pos) const
         {
             return wire_state.clamped_at(pos);
+        }
+
+        bool HaveSolidTileAt(ivec2 pos) const
+        {
+            Tile tile = GetTileMid(pos);
+            const auto &info = GetTileInfo(tile);
+
+            return info.elec && WireStateAt(pos).IsEnabled() ? info.solid_elec : info.solid;
         }
 
         static int GetRandomNumberForTile(ivec2 tile_pos, int size)
@@ -478,11 +510,9 @@ struct Hitbox
     bool IsSolidAt(const Map &map, ivec2 pos) const
     {
         bool solid = 0;
-        ForEachCollidingTile(map.layer_mid, pos, [&](ivec2 tile_pos, Tile tile) -> bool
+        ForEachCollidingTile(map.layer_mid, pos, [&](ivec2 tile_pos, Tile) -> bool
         {
-            const auto &info = GetTileInfo(tile);
-
-            if (info.elec && map.WireStateAt(tile_pos).IsEnabled() ? info.solid_exec : info.solid)
+            if (map.HaveSolidTileAt(tile_pos))
             {
                 solid = 1;
                 return 0;
@@ -692,6 +722,8 @@ struct Player
     bool alive = 1;
     int death_timer = 0;
 
+    int fire_cooldown = 0;
+
     std::set<char> enabled_controls;
 };
 
@@ -711,6 +743,13 @@ struct LetterPowerup
         const char *ptr = std::strchr(symbols, ch);
         return ptr ? ptr - symbols : -1;
     }
+};
+
+struct Bullet
+{
+    SubpixelPos pos;
+    fvec2 vel{};
+    int age = 0;
 };
 
 struct World
@@ -733,6 +772,7 @@ struct World
     std::vector<LetterPowerup> letter_powerups;
 
     std::vector<ivec2> checkpoints;
+    std::vector<Bullet> bullets;
 };
 
 namespace States
@@ -792,7 +832,22 @@ namespace States
                 particle_gravity = 0.01,
                 camera_y_offset = 16, camera_ref_dist = 10, camera_acc_pow = 1.5, camera_drag_fac = 0.8, camera_mass = 34,
                 fade_step = 0.02, death_fade_step = 0.035,
-                click_me_sign_alpha_step = 0.08;
+                click_me_sign_alpha_step = 0.08,
+                bullet_speed = 4;
+
+            // for (char ch : std::string("wadj"))
+            // {
+            //     bool state = p.enabled_controls.count(ch);
+            //     bool old_state = state;
+            //     ImGui::Checkbox("[{}]"_format(ch).c_str(), &state);
+            //     if (state != old_state)
+            //     {
+            //         if (state)
+            //             p.enabled_controls.insert(ch);
+            //         else
+            //             p.enabled_controls.erase(ch);
+            //     }
+            // }
 
             // ImGui::InputFloat("gravity_subpixel", &gravity_subpixel, 1, 10);
             // ImGui::InputFloat("jump", &jump_speed, 1, 10);
@@ -818,7 +873,14 @@ namespace States
                 {
                     w.need_wire_update = 0;
 
-                    auto StartWireUpdate = [&](auto &recurse, ivec2 pos, bool is_source, int skip_if_dist_leq)
+                    struct DelayedUpdate
+                    {
+                        ivec2 pos{};
+                        int skip_if_dist_leq = 0;
+                    };
+                    std::vector<DelayedUpdate> delayed_updates;
+
+                    auto StartWireUpdate = [&](ivec2 pos, bool is_source, int skip_if_dist_leq)
                     {
                         { // Check if we should update this wire
                             if (!map.layer_wire.pos_in_range(pos))
@@ -867,11 +929,13 @@ namespace States
                                 state.dist_to_source = state.max_dist_to_source;
                         }
 
+                        if (state.dist_to_source != state.prev_dist_to_source)
+                            w.need_wire_update = 1;
+
                         if (state.dist_to_source != old_dist)
                         {
-                            w.need_wire_update = 1;
                             for (int i = 0; i < 4; i++)
-                                recurse(recurse, pos + ivec2(1,0).rot90(i), false, state.dist_to_source);
+                                delayed_updates.push_back(adjust(DelayedUpdate{}, pos = pos + ivec2(1,0).rot90(i), skip_if_dist_leq = state.dist_to_source));
                         }
                     };
 
@@ -885,10 +949,19 @@ namespace States
 
                     // Recalculate wires.
                     for (ivec2 pos : map.wire_elec_sources)
-                        StartWireUpdate(StartWireUpdate, pos, true, -1);
+                        StartWireUpdate(pos, true, -1);
+
+                    while (delayed_updates.size() > 0)
+                    {
+                        std::vector<DelayedUpdate> copied_updates = std::move(delayed_updates);
+                        delayed_updates.clear();
+                        for (const auto &upd : delayed_updates)
+                            StartWireUpdate(upd.pos, false, upd.skip_if_dist_leq);
+                    }
                 }
             }
 
+            std::cout << w.need_wire_update << '\n';
 
             { // Player
                 // Check for ground
@@ -969,6 +1042,20 @@ namespace States
 
                     if (controls.jump.released() && p.enabled_controls.count('w') && p.vel_subpixel.y)
                         clamp_var_min(p.vel_subpixel.y, -vel_cap_soft_up);
+                }
+
+                // Shoot
+                {
+                    if (p.alive && p.enabled_controls.count('j') && p.fire_cooldown == 0 && controls.shoot.pressed())
+                    {
+                        Sounds::laser();
+                        p.fire_cooldown = 20;
+
+                        w.bullets.push_back(adjust(Bullet{}, pos.Set(p.pos.Value() + ivec2((p.facing_left ? -1 : 1) * 4, -5)), vel = fvec2((p.facing_left ? -1 : 1) * bullet_speed, 0)));
+                    }
+
+                    if (p.fire_cooldown > 0)
+                        p.fire_cooldown--;
                 }
 
 
@@ -1056,6 +1143,53 @@ namespace States
                         Sounds::wrong_key();
                 }
 
+                { // Check for letter slots
+                    ivec2 tile_pos = Map::PixelToTilePos(p.pos.Value());
+                    Tile tile = map.GetTileWire(tile_pos);
+                    if (TileIsSlot(tile))
+                    {
+                        auto source_it = map.wire_elec_sources.find(tile_pos);
+
+                        if (source_it != map.wire_elec_sources.end())
+                        {
+                            char slot_ch =
+                                tile == Tile::slot_w ? 'w' :
+                                tile == Tile::slot_a ? 'a' :
+                                tile == Tile::slot_d ? 'd' :
+                                                       'j';
+
+                            bool have_this_ch = p.enabled_controls.count(slot_ch);
+
+                            if (have_this_ch)
+                            {
+                                p.enabled_controls.erase(slot_ch);
+                                map.wire_elec_sources.erase(source_it);
+                                w.need_wire_update = 1;
+
+                                ivec2 pixel_pos = tile_pos * tile_size + tile_size/2;
+                                Sounds::power_off(pixel_pos);
+
+                                for (int i = 0; i < 14; i++)
+                                {
+                                    constexpr fvec3 color_a = fvec3(0x58, 0x2e, 0x13) / 255, color_b = fvec3(0xfb, 0x96, 0x32) / 255;
+
+                                    par.AddFront(adjust(Particle{},
+                                        pos = pixel_pos + fvec2(-4 <= random.real() <= 4, -4 <= random.real() <= 4),
+                                        vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
+                                        acc = fvec2(0,particle_gravity*2),
+                                        current_time = 0,
+                                        mid_time = 5,
+                                        max_time = 20 <= random.integer() <= 40,
+                                        size = 1 <= random.real() <= 3.5,
+                                        color = random.boolean() ? color_b : color_a,
+                                        beta = 0.75
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Check damage sources
                 if (p.alive)
                 {
@@ -1126,7 +1260,7 @@ namespace States
                                 Sounds::power_off(pixel_center, 0.5);
                             }
 
-                            for (int i = 0; i < 10; i++)
+                            for (int i = 0; i < 14; i++)
                             {
                                 constexpr fvec3 color_a = fvec3(0x58, 0x2e, 0x13) / 255, color_b = fvec3(0xfb, 0x96, 0x32) / 255;
 
@@ -1150,6 +1284,80 @@ namespace States
 
                     if (w.clicked_at_least_once)
                         clamp_var_min(w.click_me_sign_alpha -= click_me_sign_alpha_step);
+                }
+            }
+
+            { // Bullets
+                auto it = w.bullets.begin();
+                while (it != w.bullets.end())
+                {
+                    auto &bullet = *it;
+
+                    bullet.pos.Offset(bullet.vel * subpixel_units);
+
+                    for (int i = 0; i < 1; i++)
+                    {
+                        constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
+
+                        par.AddBack(adjust(Particle{},
+                            pos = bullet.pos.Value() + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
+                            vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.3) + bullet.vel * 0.8,
+                            acc = fvec2(-sign(bullet.vel.x) * 0.1,0),
+                            current_time = 0,
+                            mid_time = 5,
+                            max_time = 40 <= random.integer() <= 60,
+                            size = 1 <= random.real() <= 6,
+                            color = random.boolean() ? color_b : color_a,
+                            beta = 0.75
+                        ));
+                    }
+
+                    ivec2 point = bullet.pos.Value() with(x += sign(bullet.vel.x) * 5);
+                    ivec2 point_tile = Map::PixelToTilePos(point);
+
+                    if (map.HaveSolidTileAt(point_tile))
+                    {
+                        if (map.GetTileMid(point_tile) == Tile::target)
+                        {
+                            auto it = map.wire_elec_sources.find(point_tile);
+                            if (it != map.wire_elec_sources.end())
+                                map.wire_elec_sources.erase(it);
+                            else
+                                map.wire_elec_sources.insert(point_tile);
+                            w.need_wire_update = 1;
+                        }
+
+                        for (int i = 0; i < 14; i++)
+                        {
+                            constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
+
+                            par.AddFront(adjust(Particle{},
+                                pos = point + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
+                                vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
+                                acc = fvec2(0,particle_gravity),
+                                current_time = 0,
+                                mid_time = 5,
+                                max_time = 40 <= random.integer() <= 60,
+                                size = 1 <= random.real() <= 10,
+                                color = random.boolean() ? color_b : color_a,
+                                beta = 0.75
+                            ));
+                        }
+
+                        Sounds::laser_hit(point);
+
+                        it = w.bullets.erase(it);
+                        continue;
+                    }
+
+                    bullet.age++;
+                    if (bullet.age > 60 * 2)
+                    {
+                        it = w.bullets.erase(it);
+                        continue;
+                    }
+
+                    it++;
                 }
             }
 
@@ -1401,7 +1609,7 @@ namespace States
                     if (p.death_timer > 20)
                     {
                         w.death_fade_out += death_fade_step;
-                        if (w.death_fade_out > 1)
+                        if (w.death_fade_out > 1.2)
                         {
                             *this = saved_game;
                             par.Reset();
@@ -1491,20 +1699,30 @@ namespace States
                    * r.TexturedQuad(sprites.player.region(player_sprite_size * ivec2(anim_frame, anim_state), player_sprite_size)).Centered().Opacity(alpha);
             }
 
-            { // Checkpoints
-                for (ivec2 pos : w.checkpoints)
-                {
-                    r << r.translate(pos - w.camera_pos.Value()) * r.rotate(f_pi / 4)
-                       * r.UntexturedQuad(ivec2(9)).Centered().Color(fvec3(0));
+            // Particles
+            par.Render(w.camera_pos.Value(), false);
 
-                    int size = 7 + iround(sin(window.Ticks() % 20 / 20.f * 2 * f_pi));
-                    r << r.translate(pos - w.camera_pos.Value()) * r.rotate(f_pi / 4)
-                       * r.UntexturedQuad(ivec2(size)).Centered().Color(fvec3(0.5 <= random.real() <= 0.75, 1, 0));
+            { // Bullets
+                for (const Bullet &bullet : w.bullets)
+                {
+                    r << r.translate(bullet.pos.Value() - w.camera_pos.Value()) * r.flip_x(bullet.vel.x < 0)
+                       * r.TexturedQuad(sprites.bullet).Centered();
                 }
             }
 
-            // Particles
-            par.Render(w.camera_pos.Value(), false);
+            { // Checkpoints
+                for (ivec2 pos : w.checkpoints)
+                {
+                    fvec3 color = fvec3(0.5 <= random.real() <= 0.75, 1, 0);
+
+                    r << r.translate(pos - w.camera_pos.Value()) * r.rotate(f_pi / 4)
+                       * r.UntexturedQuad(ivec2(9)).Centered().Color(color / 3);
+
+                    int size = 7 + iround(sin(window.Ticks() % 20 / 20.f * 2 * f_pi));
+                    r << r.translate(pos - w.camera_pos.Value()) * r.rotate(f_pi / 4)
+                       * r.UntexturedQuad(ivec2(size)).Centered().Color(color);
+                }
+            }
 
             // Map (front)
             map.RenderLayerMid(w.camera_pos.Value(), true);
@@ -1575,7 +1793,7 @@ namespace States
 
             { // Screen fade
                 { // Death fade
-                    float t = w.death_fade_out;
+                    float t = clamp(w.death_fade_out);
 
                     if (t > 0.001)
                     {
