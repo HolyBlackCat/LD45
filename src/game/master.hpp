@@ -2,6 +2,8 @@
 
 #include <deque>
 #include <iostream>
+#include <set>
+#include <unordered_set>
 
 #include "audio/complete.h"
 #include "gameutils/adaptive_viewport.h"

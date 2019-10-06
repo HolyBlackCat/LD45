@@ -241,7 +241,7 @@ namespace Graphics::Renderers
 
             [[nodiscard]] auto CenterTex(fvec2 center_tex) const
             {
-                return CenterRel(center_tex / this->data.texture.tex_size);
+                return CenterRel(center_tex / this->data.tex_size);
             }
 
             [[nodiscard]] auto Centered() const

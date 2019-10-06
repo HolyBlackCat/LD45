@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!DOCTYPE lmms-project>
+<lmms-project type="song" creatorversion="1.2.0" creator="LMMS" version="1.0">
+  <head timesig_denominator="4" timesig_numerator="4" mastervol="100" masterpitch="0" bpm="140"/>
+  <song>
+    <trackcontainer type="song" width="600" maximized="0" visible="1" minimized="0" height="300" y="50" x="312">
+      <track type="0" name="Mallets" solo="0" muted="0">
+        <instrumenttrack fxch="0" pitchrange="1" pitch="-100" vol="100" basenote="47" pan="0" usemasterpitch="1">
+          <instrument name="malletsstk">
+            <malletsstk vib_gain="0" vib_freq="0" stick_mix="0" modulator="64" hardness="64" velocity="64" oldversion="0" preset="7" lfo_depth="64" strike="1" position="64" version="1" adsr="64" pressure="64" spread="0" crossfade="64" lfo_speed="64"/>
+          </instrument>
+          <eldata fres="0.5" fcut="14000" fwet="0" ftype="0">
+            <elvol lamt="0" pdel="0" lspd="0.1" x100="0" lshp="0" ctlenvamt="0" att="0.03" lspd_denominator="4" sustain="0.467" rel="1.145" userwavefile="" latt="0" lspd_syncmode="0" amt="1" dec="0.766" lpdel="0" hold="0" lspd_numerator="4"/>
+            <elcut lamt="0" pdel="0" lspd="0.1" x100="0" lshp="0" ctlenvamt="0" att="0" lspd_denominator="4" sustain="0.5" rel="0.1" userwavefile="" latt="0" lspd_syncmode="0" amt="0" dec="0.5" lpdel="0" hold="0.5" lspd_numerator="4"/>
+            <elres lamt="0" pdel="0" lspd="0.1" x100="0" lshp="0" ctlenvamt="0" att="0" lspd_denominator="4" sustain="0.5" rel="0.1" userwavefile="" latt="0" lspd_syncmode="0" amt="0" dec="0.5" lpdel="0" hold="0.5" lspd_numerator="4"/>
+          </eldata>
+          <chordcreator chord-enabled="0" chord="0" chordrange="1"/>
+          <arpeggiator arp="0" arpskip="0" arpmode="0" arpmiss="0" arptime_numerator="4" arptime_syncmode="0" arpdir="0" arptime_denominator="4" arprange="1" arptime="200" arpgate="100" arp-enabled="0" arpcycle="0"/>
+          <midiport outputchannel="1" outputprogram="1" inputchannel="0" readable="0" fixedinputvelocity="-1" outputcontroller="0" fixedoutputnote="-1" writable="0" basevelocity="63" inputcontroller="0" fixedoutputvelocity="-1"/>
+          <fxchain numofeffects="1" enabled="1">
+            <effect gate="0" on="1" wet="1" name="ladspaeffect" autoquit_numerator="4" autoquit_denominator="4" autoquit="1" autoquit_syncmode="0">
+              <ladspacontrols ports="4" link="1">
+                <port00 link="1">
+                  <data value="0.25875" scale_type="log" id="6946"/>
+                </port00>
+                <port01 link="1" data="4"/>
+                <port10>
+                  <data value="0.25875" scale_type="log" id="7407"/>
+                </port10>
+                <port11 data="4"/>
+              </ladspacontrols>
+              <key>
+                <attribute name="file" value="am_pitchshift_1433"/>
+                <attribute name="plugin" value="amPitchshift"/>
+              </key>
+            </effect>
+          </fxchain>
+        </instrumenttrack>
+        <pattern type="1" name="Mallets" pos="0" steps="16" muted="0">
+          <note key="41" vol="100" pan="0" pos="0" len="48"/>
+        </pattern>
+      </track>
+    </trackcontainer>
+    <track type="6" name="Automation track" solo="0" muted="0">
+      <automationtrack/>
+      <automationpattern tens="1" name="Numerator" prog="0" mute="0" pos="0" len="192"/>
+      <automationpattern tens="1" name="Denominator" prog="0" mute="0" pos="0" len="192"/>
+      <automationpattern tens="1" name="Tempo" prog="0" mute="0" pos="0" len="192"/>
+      <automationpattern tens="1" name="Master volume" prog="0" mute="0" pos="0" len="192"/>
+      <automationpattern tens="1" name="Master pitch" prog="0" mute="0" pos="0" len="192"/>
+    </track>
+    <fxmixer width="543" maximized="0" visible="1" minimized="0" height="333" y="310" x="5">
+      <fxchannel name="Master" volume="1" soloed="0" num="0" muted="0">
+        <fxchain numofeffects="0" enabled="0"/>
+      </fxchannel>
+    </fxmixer>
+    <ControllerRackView width="350" maximized="0" visible="1" minimized="0" height="200" y="310" x="680"/>
+    <pianoroll width="860" maximized="0" visible="1" minimized="0" height="480" y="5" x="5"/>
+    <automationeditor width="860" maximized="0" visible="0" minimized="0" height="400" y="1" x="1"/>
+    <projectnotes width="687" maximized="0" visible="0" minimized="0" height="400" y="10" x="700"><![CDATA[<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+p, li { white-space: pre-wrap; }
+</style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;">
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html>]]></projectnotes>
+    <timeline lp0pos="0" lp1pos="192" lpstate="0"/>
+    <controllers/>
+  </song>
+</lmms-project>
