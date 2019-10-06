@@ -955,13 +955,11 @@ namespace States
                     {
                         std::vector<DelayedUpdate> copied_updates = std::move(delayed_updates);
                         delayed_updates.clear();
-                        for (const auto &upd : delayed_updates)
+                        for (const auto &upd : copied_updates)
                             StartWireUpdate(upd.pos, false, upd.skip_if_dist_leq);
                     }
                 }
             }
-
-            std::cout << w.need_wire_update << '\n';
 
             { // Player
                 // Check for ground
