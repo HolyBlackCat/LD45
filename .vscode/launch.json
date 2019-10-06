@@ -8,7 +8,7 @@
             "name": "Debug (win)",
             "type": "gdb",
             "request": "launch",
-            "target": "./imp-re.exe",
+            "target": "./wadj.exe",
             "cwd": "${workspaceRoot}/bin",
             "valuesFormatting": "parseText",
             "terminal": "",

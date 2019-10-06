@@ -1,7 +1,7 @@
 #include "gameutils/tiled_map.h"
 
 constexpr ivec2 screen_size(480, 270);
-Interface::Window window("LD45", screen_size * 2, Interface::windowed, adjust_(Interface::WindowSettings{}, min_size = screen_size));
+Interface::Window window("WADJ — LD45", screen_size * 2, Interface::windowed, adjust_(Interface::WindowSettings{}, min_size = screen_size));
 Graphics::DummyVertexArray dummy_vao = nullptr;
 
 Audio::Context audio_context = nullptr;
@@ -11,7 +11,8 @@ Input::Mouse mouse;
 Random random(std::time(0));
 
 const Graphics::ShaderConfig shader_config = Graphics::ShaderConfig::Core();
-Interface::ImGuiController gui_controller(Poly::derived<Interface::ImGuiController::GraphicsBackend_Modern>, adjust_(Interface::ImGuiController::Config{}, shader_header = shader_config.common_header));
+Interface::ImGuiController gui_controller(Poly::derived<Interface::ImGuiController::GraphicsBackend_Modern>,
+    adjust_(Interface::ImGuiController::Config{}, shader_header = shader_config.common_header, store_state_in_file = ""));
 
 Graphics::TextureAtlas texture_atlas(ivec2(2048), "assets/_images", "assets/atlas.png", "assets/atlas.refl");
 Graphics::Texture texture_main = Graphics::Texture(nullptr).Wrap(Graphics::clamp).Interpolation(Graphics::nearest);
@@ -25,7 +26,7 @@ Graphics::Font font_main;
 Graphics::FontFile font_file_main("assets/CatIV15.ttf", 15);
 
 ReflectStruct(Sprites, (
-    (Graphics::TextureAtlas::Region)(font_storage,tiles,player,sky,vignette,cursor,frame,click_me,letters,small_letters,key_enabled,bullet),
+    (Graphics::TextureAtlas::Region)(font_storage,tiles,player,sky,vignette,cursor,frame,click_me,letters,small_letters,key_enabled,bullet,final_box),
 ))
 Sprites sprites;
 
@@ -44,6 +45,7 @@ namespace Sounds
         x( checkpoint , 0.3 ) \
         x( laser      , 0.3 ) \
         x( laser_hit  , 0.3 ) \
+        x( box_hit    , 0.3 ) \
 
     #define X(name, random_pitch) \
         Audio::Buffer _buffer_##name(Audio::Sound(Audio::wav, Audio::mono, "assets/sounds/" #name ".wav")); \
@@ -61,6 +63,9 @@ namespace Sounds
     #undef X
 
     #undef SOUND_LIST
+
+    Audio::Buffer theme_buffer(Audio::Sound(Audio::ogg, "assets/sounds/theme.ogg"));
+    Audio::Source theme_src;
 }
 
 ReflectStruct(Controls, (
@@ -708,7 +713,7 @@ class ParticleController
 
 struct Player
 {
-    inline static const Hitbox hitbox = Hitbox(ivec2(10, 19)), damage_hitbox = Hitbox(ivec2(6, 10));
+    inline static const Hitbox hitbox = Hitbox(ivec2(10, 19)), damage_hitbox = Hitbox(ivec2(10, 10));
 
     SubpixelPos pos;
     fvec2 vel_subpixel{};
@@ -773,6 +778,10 @@ struct World
 
     std::vector<ivec2> checkpoints;
     std::vector<Bullet> bullets;
+
+    ivec2 final_box_pos{};
+    static constexpr int final_box_max_hp = 5;
+    int final_box_hp = final_box_max_hp;
 };
 
 namespace States
@@ -804,6 +813,7 @@ namespace States
 
             p.pos.Set(iround(map.layer_points.GetSinglePoint("player") with(y -= 4)));
             w.camera_pos = p.pos.Value();
+            w.final_box_pos = iround(map.layer_points.GetSinglePoint("final_box"));
 
             map.layer_points.ForEachPointWithNamePrefix("letter:", [&](std::string name, fvec2 pos)
             {
@@ -1293,21 +1303,24 @@ namespace States
 
                     bullet.pos.Offset(bullet.vel * subpixel_units);
 
-                    for (int i = 0; i < 1; i++)
+                    if ((abs(bullet.pos.Value() - w.camera_pos.Value()) < screen_size/2 + 32).all())
                     {
-                        constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
+                        for (int i = 0; i < 1; i++)
+                        {
+                            constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
 
-                        par.AddBack(adjust(Particle{},
-                            pos = bullet.pos.Value() + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
-                            vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.3) + bullet.vel * 0.8,
-                            acc = fvec2(-sign(bullet.vel.x) * 0.1,0),
-                            current_time = 0,
-                            mid_time = 5,
-                            max_time = 40 <= random.integer() <= 60,
-                            size = 1 <= random.real() <= 6,
-                            color = random.boolean() ? color_b : color_a,
-                            beta = 0.75
-                        ));
+                            par.AddBack(adjust(Particle{},
+                                pos = bullet.pos.Value() + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
+                                vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.3) + bullet.vel * 0.8,
+                                acc = fvec2(-sign(bullet.vel.x) * 0.1,0),
+                                current_time = 0,
+                                mid_time = 5,
+                                max_time = 40 <= random.integer() <= 60,
+                                size = 1 <= random.real() <= 6,
+                                color = random.boolean() ? color_b : color_a,
+                                beta = 0.75
+                            ));
+                        }
                     }
 
                     ivec2 point = bullet.pos.Value() with(x += sign(bullet.vel.x) * 5);
@@ -1325,24 +1338,41 @@ namespace States
                             w.need_wire_update = 1;
                         }
 
-                        for (int i = 0; i < 14; i++)
+                        if ((abs(bullet.pos.Value() - w.camera_pos.Value()) < screen_size/2 + 48).all())
                         {
-                            constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
+                            for (int i = 0; i < 14; i++)
+                            {
+                                constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
 
-                            par.AddFront(adjust(Particle{},
-                                pos = point + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
-                                vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
-                                acc = fvec2(0,particle_gravity),
-                                current_time = 0,
-                                mid_time = 5,
-                                max_time = 40 <= random.integer() <= 60,
-                                size = 1 <= random.real() <= 10,
-                                color = random.boolean() ? color_b : color_a,
-                                beta = 0.75
-                            ));
+                                par.AddFront(adjust(Particle{},
+                                    pos = point + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
+                                    vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
+                                    acc = fvec2(0,particle_gravity),
+                                    current_time = 0,
+                                    mid_time = 5,
+                                    max_time = 40 <= random.integer() <= 60,
+                                    size = 1 <= random.real() <= 10,
+                                    color = random.boolean() ? color_b : color_a,
+                                    beta = 0.75
+                                ));
+                            }
                         }
 
                         Sounds::laser_hit(point);
+
+                        it = w.bullets.erase(it);
+                        continue;
+                    }
+
+                    if (w.final_box_hp > 0 && (abs(bullet.pos.Value() - w.final_box_pos) <= 13).all())
+                    {
+                        w.final_box_hp--;
+                        if (w.final_box_hp == 0)
+                        {
+                            Program::Exit();
+                        }
+
+                        Sounds::box_hit(point);
 
                         it = w.bullets.erase(it);
                         continue;
@@ -1504,7 +1534,7 @@ namespace States
                 {
                     ivec2 checkpoint = *it;
 
-                    if ((0 <= random.integer() <= 4) == 0)
+                    if ((abs(checkpoint - w.camera_pos.Value()) < screen_size/2 + 32).all() && (0 <= random.integer() <= 4) == 0)
                     {
                         par.AddFront(adjust(Particle{},
                             pos = checkpoint + ivec2(-3 <= random.real() <= 3, -3 <= random.real() <= 3),
@@ -1518,7 +1548,7 @@ namespace States
                     }
 
                     // Collect
-                    if (((p.pos.Value() - checkpoint).abs() < p.hitbox.half_extent + 2).all())
+                    if (((p.pos.Value() - checkpoint).abs() < p.hitbox.half_extent + 3).all())
                     {
                         for (int i = 0; i < 20; i++)
                         {
@@ -1609,8 +1639,12 @@ namespace States
                         w.death_fade_out += death_fade_step;
                         if (w.death_fade_out > 1.2)
                         {
+                            ivec2 old_cam_pos = w.camera_pos.Value();
                             *this = saved_game;
                             par.Reset();
+                            w.camera_pos.Set(old_cam_pos);
+                            w.camera_vel = fvec2(0);
+                            w.fade_in = 1;
                             return;
                         }
                     }
@@ -1619,11 +1653,13 @@ namespace States
                 }
             }
 
-            { // Misc times
+            { // Misc timers
                 clamp_var_min(w.fade_in -= fade_step);
 
                 if (w.pressed_at_least_once)
                     clamp_var_min(w.key_enabled_sign_alpha -= click_me_sign_alpha_step);
+
+                Sounds::theme_src.volume((w.final_box_hp / float(w.final_box_max_hp)) * 0.3);
             }
         }
 
@@ -1697,6 +1733,10 @@ namespace States
                    * r.TexturedQuad(sprites.player.region(player_sprite_size * ivec2(anim_frame, anim_state), player_sprite_size)).Centered().Opacity(alpha);
             }
 
+            // Final box
+            r << r.translate(w.final_box_pos - w.camera_pos.Value())
+               * r.TexturedQuad(sprites.final_box).Centered();
+
             // Particles
             par.Render(w.camera_pos.Value(), false);
 
@@ -1769,27 +1809,51 @@ namespace States
             }
 
             { // Cursor
-                // Tile frame
-                ivec2 mouse_tile = Map::PixelToTilePos(w.cursor_pos);
-                if (map.GetTileWire(mouse_tile) == Tile::button)
-                    r << r.translate(mouse_tile * tile_size + tile_size/2 - w.camera_pos.Value()) * r.TexturedQuad(sprites.frame).Centered();
-
-                // "Click me" sign
+                // "Click me" sign and author info
                 if (w.click_me_sign_alpha > 0.001)
                 {
                     r << r.translate(map.click_me_sign - w.camera_pos.Value())
                        * r.TexturedQuad(sprites.click_me).CenterTex(ivec2(15,2)).Opacity(w.click_me_sign_alpha - 0.2 * (sin(window.Ticks() % 30 / 30.f * 2 * f_pi) * 0.5 + 0.5));
+
+                    Draw::Text(adjust(Draw::TextData{}, pos = ivec2(0,-screen_size.y/2 - 3), align = ivec2(0,-1), color = fvec3(0), alpha = w.click_me_sign_alpha * 0.75,
+                        text = Graphics::Text(font_main, "WADJ - a game by HolyBlackCat, made for LD45 in Oct 2019")));
                 }
 
-                // Actual cursor
                 if (w.cursor_idle_timer < 90)
+                {
+                    // Tile frame
+                    ivec2 mouse_tile = Map::PixelToTilePos(w.cursor_pos);
+                    if (map.GetTileWire(mouse_tile) == Tile::button)
+                        r << r.translate(mouse_tile * tile_size + tile_size/2 - w.camera_pos.Value()) * r.TexturedQuad(sprites.frame).Centered();
+
+                    // Actual cursor
                     r << r.translate(mouse.pos()) * r.TexturedQuad(sprites.cursor).Centered();
+                }
             }
 
             // Vignette
             r << r.TexturedQuad(sprites.vignette).Centered();
 
             { // Screen fade
+                { // Finale
+                    if (w.final_box_hp < w.final_box_max_hp)
+                    {
+                        float t = 1 - (w.final_box_hp - 1) / float(w.final_box_max_hp);
+                        // t = std::pow(t, 0.85);
+
+                        fvec3 color(1,0.9,0.8);
+
+                        r << r.UntexturedQuad(screen_size).Color(color * (1-t) + fvec3(1) * t).Centered().Opacity(t, t);
+
+                        static constexpr float text_th = 0.75;
+
+                        if (t > text_th)
+                        {
+                            Draw::Text(adjust(Draw::TextData{}, color = fvec3(0), alpha = (t - text_th) / (1 - text_th), pos = fvec2(0), text = Graphics::Text(font_main, "Thanks for playing! <3")));
+                        }
+                    }
+                }
+
                 { // Death fade
                     float t = clamp(w.death_fade_out);
 
@@ -1824,6 +1888,8 @@ namespace States
 
 int ENTRY_POINT(int, char **)
 {
+    window.SetMode(Interface::borderless_fullscreen);
+
     { // Initialize
         { // Renderer
             Graphics::Blending::Enable();
@@ -1876,6 +1942,8 @@ int ENTRY_POINT(int, char **)
             Audio::Source::DefaultRefDistance(4 * screen_size.x / 2);
             Audio::Source::DefaultMaxDistance(4 * screen_size.x / 2);
             Audio::Source::DefaultRolloffFactor(1);
+
+            Sounds::theme_src = Audio::Source(Sounds::theme_buffer).loop(1).play();
         }
 
         mouse.HideCursor();
@@ -1901,6 +1969,11 @@ int ENTRY_POINT(int, char **)
         {
             // window.ProcessEvents();
             window.ProcessEvents({gui_controller.EventHook()});
+
+            if ((Input::Button(Input::l_alt).down() || Input::Button(Input::r_alt).down()) && Input::Button(Input::enter).pressed())
+            {
+                window.SetMode(window.Mode() == Interface::windowed ? Interface::borderless_fullscreen : Interface::windowed);
+            }
 
             if (window.Resized())
             {
