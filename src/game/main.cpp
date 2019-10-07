@@ -11,10 +11,10 @@ Input::Mouse mouse;
 Random random(std::time(0));
 
 const Graphics::ShaderConfig shader_config = Graphics::ShaderConfig::Core();
-Interface::ImGuiController gui_controller(Poly::derived<Interface::ImGuiController::GraphicsBackend_Modern>,
-    adjust_(Interface::ImGuiController::Config{}, shader_header = shader_config.common_header, store_state_in_file = ""));
+// Interface::ImGuiController gui_controller(Poly::derived<Interface::ImGuiController::GraphicsBackend_Modern>,
+//     adjust_(Interface::ImGuiController::Config{}, shader_header = shader_config.common_header, store_state_in_file = ""));
 
-Graphics::TextureAtlas texture_atlas(ivec2(2048), "assets/_images", "assets/atlas.png", "assets/atlas.refl");
+Graphics::TextureAtlas texture_atlas(ivec2(1024), "assets/_images", "assets/atlas.png", "assets/atlas.refl");
 Graphics::Texture texture_main = Graphics::Texture(nullptr).Wrap(Graphics::clamp).Interpolation(Graphics::nearest);
 
 AdaptiveViewport adaptive_viewport(shader_config, screen_size);
@@ -1659,7 +1659,7 @@ namespace States
                 if (w.pressed_at_least_once)
                     clamp_var_min(w.key_enabled_sign_alpha -= click_me_sign_alpha_step);
 
-                Sounds::theme_src.volume((w.final_box_hp / float(w.final_box_max_hp)) * 0.3);
+                Sounds::theme_src.volume((w.final_box_hp / float(w.final_box_max_hp)) * 0.25);
             }
         }
 
@@ -1888,7 +1888,9 @@ namespace States
 
 int ENTRY_POINT(int, char **)
 {
+    #ifdef NDEBUG
     window.SetMode(Interface::borderless_fullscreen);
+    #endif
 
     { // Initialize
         { // Renderer
@@ -1926,19 +1928,20 @@ int ENTRY_POINT(int, char **)
         }
 
         { // Gui
-            ImGui::StyleColorsDark();
+            // ImGui::StyleColorsDark();
 
             // Load various small fonts
-            auto monochrome_font_flags = ImGuiFreeType::Monochrome | ImGuiFreeType::MonoHinting;
+            // auto monochrome_font_flags = ImGuiFreeType::Monochrome | ImGuiFreeType::MonoHinting;
 
-            gui_controller.LoadFont("assets/CatIV15.ttf", 15.0f, adjust(ImFontConfig{}, RasterizerFlags = monochrome_font_flags));
-            gui_controller.LoadDefaultFont();
-            gui_controller.RenderFontsWithFreetype();
+            // gui_controller.LoadFont("assets/CatIV15.ttf", 15.0f, adjust(ImFontConfig{}, RasterizerFlags = monochrome_font_flags));
+            // gui_controller.LoadDefaultFont();
+            // gui_controller.RenderFontsWithFreetype();
 
-            ImGui::GetIO().MouseDrawCursor = 1;
+            // ImGui::GetIO().MouseDrawCursor = 1;
         }
 
         { // Audio
+            Audio::Volume(1.5);
             Audio::Source::DefaultRefDistance(4 * screen_size.x / 2);
             Audio::Source::DefaultMaxDistance(4 * screen_size.x / 2);
             Audio::Source::DefaultRolloffFactor(1);
@@ -1967,13 +1970,13 @@ int ENTRY_POINT(int, char **)
         uint64_t delta = delta_timer();
         while (metronome.Tick(delta))
         {
-            // window.ProcessEvents();
-            window.ProcessEvents({gui_controller.EventHook()});
-
             if ((Input::Button(Input::l_alt).down() || Input::Button(Input::r_alt).down()) && Input::Button(Input::enter).pressed())
             {
                 window.SetMode(window.Mode() == Interface::windowed ? Interface::borderless_fullscreen : Interface::windowed);
             }
+
+            window.ProcessEvents();
+            // window.ProcessEvents({gui_controller.EventHook()});
 
             if (window.Resized())
             {
@@ -1983,18 +1986,18 @@ int ENTRY_POINT(int, char **)
             if (window.ExitRequested())
                 Program::Exit();
 
-            gui_controller.PreTick();
+            // gui_controller.PreTick();
             States::current_state->Tick();
             audio_context.Tick();
         }
 
-        gui_controller.PreRender();
+        // gui_controller.PreRender();
         adaptive_viewport.BeginFrame();
         States::current_state->Render();
         adaptive_viewport.FinishFrame();
         Graphics::CheckErrors();
-        if (ImGui::IsAnyWindowHovered())
-            gui_controller.PostRender();
+        // if (ImGui::IsAnyWindowHovered())
+        //     gui_controller.PostRender();
 
         window.SwapBuffers();
     }

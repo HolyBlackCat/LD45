@@ -47,6 +47,19 @@ FILE_SPECIFIC_FLAGS := lib/implementation.cpp lib/cglfl.cpp > -g0 -O3
 # Precompiled headers
 PRECOMPILED_HEADERS := src/game/*.cpp > src/game/master.hpp
 
+# Custom targets
+.PHONY: package
+package:
+	rm -rf ./LD45_WADJ/
+	cp -af ./bin ./LD45_WADJ/
+	find ./LD45_WADJ/ -type f -name "*.mmp" -print -delete
+	find ./LD45_WADJ/ -type f -name "_*" -print -delete
+	rm -rf ./LD45_WADJ/assets/_images
+	tree ./LD45_WADJ/
+	rm -f LD45_WADJ.zip
+	zip -q -r LD45_WADJ.zip LD45_WADJ/
+	rm -rf ./LD45_WADJ/
+
 # Code generation
 GEN_CXXFLAGS := -std=c++2a -Wall -Wextra -pedantic-errors
 override generators_dir := gen

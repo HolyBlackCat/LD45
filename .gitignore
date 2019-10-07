@@ -6,4 +6,6 @@ bin/imgui.ini
 bin/*.dll
 bin/*.so*
 obj/**
+LD45_WADJ/**
+LD45_WADJ.zip
 compile_commands.json
