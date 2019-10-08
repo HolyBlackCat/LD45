@@ -652,7 +652,7 @@ clean_commands: __no_mode_needed
 # --- OPTIONAL LIBRARY MANAGEMENT ---
 
 # A list of dynamic libraries currently sitting in the build directory.
-override dynamic_libraries := $(wildcard $(dir $(OUTPUT_FILE_EXT))*$(pattern_dll))
+override dynamic_libraries := $(wildcard $(dir $(OUTPUT_FILE_EXT))$(pattern_dll))
 # A command to erase all `dynamic_libraries`.
 override erase_dynamic_libraries = $(if $(dynamic_libraries),@$(success) $(foreach x,$(dynamic_libraries),&& $(call rmfile,$x)))
 
@@ -762,7 +762,7 @@ override deps_entry_name = $(subst >, ,$(word 2,$(subst <, ,$1)))
 override deps_entry_summary = $(call deps_entry_dir,$1) >> $(call deps_entry_name,$1)
 
 # A list of dynamic libraries found in the library pack.
-override available_libs = $(strip $(foreach x,$(notdir $(wildcard $(library_pack_path)/$(directory_dll)/*$(pattern_dll))),$(if $(call is_canonical_dll_name,$x),$x)))
+override available_libs = $(strip $(foreach x,$(notdir $(wildcard $(library_pack_path)/$(directory_dll)/$(pattern_dll))),$(if $(call is_canonical_dll_name,$x),$x)))
 
 ifeq ($(TARGET_OS),linux)
 override ldd_with_path = $(call set_env,LD_LIBRARY_PATH,$(library_pack_path)/$(directory_dll):$$LD_LIBRARY_PATH) && $(LDD)
