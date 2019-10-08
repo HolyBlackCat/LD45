@@ -132,8 +132,14 @@ override safe_shell_exec = $(call space,$(call safe_shell,$1))
 # Trim space on the left of $1.
 override trim_left = $(eval override __trim_left_var := $1)$(__trim_left_var)$(eval override undefine __trim_left_var)
 
-# Checks if $2 contains any word from $1 as a substring.
-override contains_any_of = $(word 1,$(foreach x,$1,$(findstring $x,$2)))
+# Checks if $2 contains any word from list $1 as a substring.
+override find_any_as_substr = $(word 1,$(foreach x,$1,$(findstring $x,$2)))
+
+# Compairs two strings for equality
+override strings_equal = $(and $(if $(findstring $1,$2),y),$(if $(findstring $2,$1),y))
+
+# Checks if list $2 contains element $1
+override find_elem_in = $(if $(filter 1,$(words $1)),$(word 1,$(foreach x,$2,$(if $(call strings_equal,$1,$x),y))))
 
 
 # --- DETECT ENVIRONMENT ---
@@ -163,11 +169,14 @@ override target_win_linux = $1
 override extension_exe := .exe
 override pattern_dll := *.dll
 override directory_dll := bin
+override is_canonical_dll_name = y
 else
 override target_win_linux = $2
 override extension_exe :=
 override pattern_dll := *.so*
 override directory_dll := lib
+# This should match `foo.so.1`, but not `foo.so` or `foo.so.1.2`
+override is_canonical_dll_name = $(filter 2,$(words $(subst ., ,$(word 2,$(subst .so, so,$(subst $(space),<,$1))))))
 endif
 
 # Host shell.
@@ -311,7 +320,7 @@ override mode_flags = __mode_$(last_mode): override$(space)
 
 # Internal function: check if mode exists.
 # Note that we shouldn't use `findstring` here, since it can match a part of mode name.
-override mode_exists = $(filter $1,$(mode_list))
+override mode_exists = $(call find_elem_in,$1,$(mode_list))
 
 
 # --- DEFAULT VARIABLE VALUES ---
@@ -607,7 +616,7 @@ override current_dir = $(subst <, ,$(subst $(space),/,$(strip $(join $(subst /, 
 else
 override current_dir = $(CURDIR)
 endif
-override EXCLUDE_FILES += $(foreach d,$(EXCLUDE_DIRS), $(call rwildcard,$d,*.c *.cpp *.h *.hpp))
+override EXCLUDE_FILES += $(foreach d,$(EXCLUDE_DIRS),$(call rwildcard,$d,*.c *.cpp *.h *.hpp))
 override include_files = $(filter-out $(EXCLUDE_FILES), $(SOURCES))
 override get_file_headers = $(foreach x,$(pch_all_entries),$(if $(filter $(call pch_entry_file_patterns,$x),$1),-include $(call pch_entry_header,$x)))
 override get_file_local_flags = $(foreach x,$(subst |, ,$(subst $(space),<,$(FILE_SPECIFIC_FLAGS))),$(if $(filter $(subst *,%,$(subst <, ,$(word 1,$(subst >, ,$x)))),$1),$(subst <, ,$(word 2,$(subst >, ,$x)))))
@@ -690,7 +699,7 @@ override pkgconfig_with_path = $(call set_env,PKG_CONFIG_PATH,) && $(call set_en
 
 # `run_pkgconfig` - runs pkg-config with $1 (--cflags or --libs) as flags, and sanitizes the results.
 override banned_pkgconfig_flag_patterns := -rpath --enable-new-dtags
-override run_pkgconfig_low = $(if $(strip $2),$(foreach x,$(call safe_shell,$1 $2),$(if $(call contains_any_of,$(banned_pkgconfig_flag_patterns),$x),,$x)))
+override run_pkgconfig_low = $(if $(strip $2),$(foreach x,$(call safe_shell,$1 $2),$(if $(call find_any_as_substr,$(banned_pkgconfig_flag_patterns),$x),,$x)))
 override run_pkgconfig = $(strip $(call run_pkgconfig_low,$(pkgconfig_with_path) $1 --define-prefix,$(USED_PACKAGES)) $(call run_pkgconfig_low,$(PKGCONFIG) $1,$(USED_EXTERNAL_PACKAGES)))
 
 # Extra library pack flags.
@@ -749,12 +758,11 @@ $(lib_pack_info_file):
 ifeq ($(dynamic_libraries),)
 
 override deps_entry_dir = $(subst >, ,$(word 1,$(subst <, ,$1)))
-override deps_entry_name_long = $(subst >, ,$(word 2,$(subst <, ,$1)))
-override deps_entry_name = $(call deps_entry_name_long,$(word 1,$(subst .so,.so ,$1)))
+override deps_entry_name = $(subst >, ,$(word 2,$(subst <, ,$1)))
 override deps_entry_summary = $(call deps_entry_dir,$1) >> $(call deps_entry_name,$1)
 
 # A list of dynamic libraries found in the library pack.
-override available_libs = $(notdir $(wildcard $(library_pack_path)/$(directory_dll)/*$(pattern_dll)))
+override available_libs = $(strip $(foreach x,$(notdir $(wildcard $(library_pack_path)/$(directory_dll)/*$(pattern_dll))),$(if $(call is_canonical_dll_name,$x),$x)))
 
 ifeq ($(TARGET_OS),linux)
 override ldd_with_path = $(call set_env,LD_LIBRARY_PATH,$(library_pack_path)/$(directory_dll):$$LD_LIBRARY_PATH) && $(LDD)
@@ -766,39 +774,45 @@ override ldd_with_path = $(call set_env,PATH,$(call native_path,$(library_pack_p
 endif
 endif
 
+# On Windows does nothing. On Linux, uses `patchelf` to add `$ORIGIN` to RPATH of library $1.
+ifeq ($(TARGET_OS),linux)
+override adjust_rpath = \
+	$(call safe_shell_exec,$(PATCHELF) --set-rpath '$$ORIGIN' '$1')
+# Alternative implementation, which appends `$ORIGIN` to rpath without removing existing entries.
+#	$(call safe_shell_exec,$(PATCHELF) --set-rpath \
+#		'$(subst <, ,$(subst $(space),:,$(strip $$ORIGIN \
+#			$(foreach y,$(subst :, ,$(subst $(space),<,$(call safe_shell,$(PATCHELF) --print-rpath '$1'))),$(if $(call find_any_as_substr,$(dollar)ORIGIN $(dollar)(ORIGIN),$y),,$y))\
+#		)))' '$1'\
+#	)
+else
+override adjust_rpath =
+endif
+
 .PHONY: __dynamic_libs
 __generic_build: | __dynamic_libs
 __dynamic_libs: | $(OUTPUT_FILE_EXT)
-	$(info [Deps] Determining dependencies for `$(OUTPUT_FILE_EXT)`)
-	$(erase_dynamic_libraries)
+	$(info [Deps] Following prebuilt libraries will be copied to `$(dir $(OUTPUT_FILE_EXT))`:)
+	$(foreach x,$(available_libs),$(info [Deps] - $(library_pack_path)/$(directory_dll)/$x))
+	$(foreach x,$(available_libs),$(call safe_shell_exec,$(call copy,$(library_pack_path)/$(directory_dll)/$x,$(dir $(OUTPUT_FILE_EXT))))\
+		$(call adjust_rpath,$(dir $(OUTPUT_FILE_EXT))$x))
+	$(info [Deps] Copying completed)
+	$(info [Deps] Determining all dependencies for `$(OUTPUT_FILE_EXT)`...)
 	$(eval override _local_dep_list := $(call safe_shell,$(ldd_with_path) -- $(OUTPUT_FILE_EXT)))
 	$(if $(strip $(_local_dep_list)),,$(error Got empty output from LDD))
 	$(eval override _local_dep_list := $(subst $(space)=>$(space),<,$(subst $(space)$(open_par),<,$(subst $(close_par) ,|,$(_local_dep_list)))))
 	$(eval override _local_dep_list := $(subst |, ,$(subst $(space),>,$(subst | ,|,$(foreach x,$(_local_dep_list),$(call trim_left,$x))))))
 	$(eval override _local_dep_list := $(sort $(foreach x,$(_local_dep_list),$(if $(filter 2,$(words $(subst <, ,$x))),./,$(subst \,/,$(dir $(word 2,$(subst <, ,$x)))))<$(word 1,$(subst <, ,$x)))))
 	$(foreach x,$(_local_dep_list),$(info [Deps] - $(call deps_entry_summary,$x)))
-	$(eval override _local_std_libs := $(foreach x,$(_local_dep_list),$(if $(call contains_any_of,$(STD_LIB_NAME_PATTERNS),$(call deps_entry_name,$x)),$x)))
-	$(eval override _local_other_libs := $(foreach x,$(_local_dep_list),$(if $(filter $(available_libs),$(call deps_entry_name,$x)),$x)))
-	$(foreach x,$(_local_std_libs) $(_local_other_libs),$(if $(call contains_any_of,$(BANNED_LIBRARY_PATH_PATTERNS),$(call deps_entry_dir,$x)),\
+	$(eval override _local_libs := $(strip $(foreach x,$(_local_dep_list),$(if $(call find_any_as_substr,$(STD_LIB_NAME_PATTERNS),$(call deps_entry_name,$x)),$x))))
+	$(foreach x,$(_local_libs),$(if $(call find_any_as_substr,$(BANNED_LIBRARY_PATH_PATTERNS),$(call deps_entry_dir,$x)),\
 		$(error Didn't expect to find `$(call deps_entry_name,$x)` in `$(call deps_entry_dir,$x)`)))
-	$(info [Deps] Following libraries will be copied to `$(dir $(OUTPUT_FILE_EXT))`:)
-	$(foreach x,$(_local_std_libs),$(info [Deps] - [standard] $(call deps_entry_summary,$x)))
-	$(foreach x,$(_local_other_libs),$(info [Deps] - [external] $(call deps_entry_summary,$x)))
-	$(foreach x,$(_local_std_libs) $(_local_other_libs),$(call safe_shell_exec,$(call copy,$(call deps_entry_dir,$x)$(call deps_entry_name_long,$x),$(dir $(OUTPUT_FILE_EXT)))))
+	$(info [Deps] Out of those, following libraries will be copied to `$(dir $(OUTPUT_FILE_EXT))`:)
+	$(foreach x,$(_local_libs),$(info [Deps] - $(call deps_entry_summary,$x)))
+	$(eval override _local_libs := $(foreach x,$(_local_libs),$(if $(call find_elem_in,$(call deps_entry_name,$x),$(available_libs)),\
+		$(info [Deps] Skipping prebuilt library: $(call deps_entry_name,$x)),$x)))
+	$(foreach x,$(_local_libs),$(call safe_shell_exec,$(call copy,$(call deps_entry_dir,$x)$(call deps_entry_name,$x),$(dir $(OUTPUT_FILE_EXT))))\
+		$(call adjust_rpath,$(dir $(OUTPUT_FILE_EXT))$(call deps_entry_name,$x)))
 	$(info [Deps] Copying completed)
-ifeq ($(TARGET_OS),linux)
-	$(info [Deps] Patching libraries... (adjusting rpath))
-	$(eval override _local_libs_to_patch := $(foreach x,$(_local_std_libs) $(_local_other_libs),$(dir $(OUTPUT_FILE_EXT))$(call deps_entry_name_long,$x)))
-	$(foreach x,$(_local_libs_to_patch),\
-		$(call safe_shell_exec,$(PATCHELF) --set-rpath \
-			'$(subst <, ,$(subst $(space),:,$(strip $$ORIGIN \
-				$(foreach x,$(subst :, ,$(subst $(space),<,$(call safe_shell,$(PATCHELF) --print-rpath $x))),$(if $(call contains_any_of,$(dollar)ORIGIN $(dollar)(ORIGIN),$x),,$x))\
-			)))' $x\
-		)\
-	)
-	$(info [Deps] Patching completed)
-endif
-
 endif
 
 endif

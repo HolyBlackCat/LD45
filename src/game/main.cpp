@@ -8,7 +8,7 @@ Audio::Context audio_context = nullptr;
 
 Input::Mouse mouse;
 
-Random random(std::time(0));
+Random rnd(std::time(0));
 
 const Graphics::ShaderConfig shader_config = Graphics::ShaderConfig::Core();
 // Interface::ImGuiController gui_controller(Poly::derived<Interface::ImGuiController::GraphicsBackend_Modern>,
@@ -51,7 +51,7 @@ namespace Sounds
         Audio::Buffer _buffer_##name(Audio::Sound(Audio::wav, Audio::mono, "assets/sounds/" #name ".wav")); \
         Audio::Source name(fvec2 pos, float vol = 1, float pitch = 1)                                       \
         {                                                                                                   \
-            pitch = std::pow(2, std::log2(pitch) + float(-random_pitch <= random.real() <= random_pitch));  \
+            pitch = std::pow(2, std::log2(pitch) + float(-random_pitch <= rnd.real() <= random_pitch));     \
             return Audio::Source(_buffer_##name).temporary().volume(vol).pitch(pitch).pos(pos);             \
         }                                                                                                   \
         Audio::Source name(float vol = 1, float pitch = 1)                                                  \
@@ -325,7 +325,7 @@ inline namespace Level
             static const auto random_array = []{
                 MultiArray<2, unsigned int> ret(ivec2(10,10));
                 for (ivec2 pos : vector_range(ret.size()))
-                    ret.nonthrowing_at(pos) = random.integer<unsigned int>();
+                    ret.nonthrowing_at(pos) = rnd.integer<unsigned int>();
                 return ret;
             }();
 
@@ -991,13 +991,13 @@ namespace States
                         {
                             par.AddBack(adjust(Particle{},
                                 pos = p.pos.Value() with(y += p.hitbox.half_extent.y),
-                                vel = fvec2::dir(f_pi / 12 <= random.real() <= f_pi / 3, 0.05 <= random.real() <= 0.4) with(x *= random.sign(), y *= -1),
+                                vel = fvec2::dir(f_pi / 12 <= rnd.real() <= f_pi / 3, 0.05 <= rnd.real() <= 0.4) with(x *= rnd.sign(), y *= -1),
                                 acc = fvec2(0,particle_gravity),
                                 current_time = 0,
                                 mid_time = 5,
-                                max_time = 40 <= random.integer() <= 60,
-                                size = 1 <= random.real() <= 5,
-                                color = fvec3(0.85 <= random.real() <= 1)
+                                max_time = 40 <= rnd.integer() <= 60,
+                                size = 1 <= rnd.real() <= 5,
+                                color = fvec3(0.85 <= rnd.real() <= 1)
                             ));
                         }
                     }
@@ -1037,13 +1037,13 @@ namespace States
                         {
                             par.AddBack(adjust(Particle{},
                                 pos = p.pos.Value() with(y += p.hitbox.half_extent.y),
-                                vel = fvec2::dir(f_pi / 12 <= random.real() <= f_pi / 3, 0.05 <= random.real() <= 0.4) with(x *= random.sign(), y *= -1),
+                                vel = fvec2::dir(f_pi / 12 <= rnd.real() <= f_pi / 3, 0.05 <= rnd.real() <= 0.4) with(x *= rnd.sign(), y *= -1),
                                 acc = fvec2(0,particle_gravity),
                                 current_time = 0,
                                 mid_time = 5,
-                                max_time = 40 <= random.integer() <= 60,
-                                size = 1 <= random.real() <= 5,
-                                color = fvec3(0.85 <= random.real() <= 1)
+                                max_time = 40 <= rnd.integer() <= 60,
+                                size = 1 <= rnd.real() <= 5,
+                                color = fvec3(0.85 <= rnd.real() <= 1)
                             ));
                         }
                     }
@@ -1182,14 +1182,14 @@ namespace States
                                     constexpr fvec3 color_a = fvec3(0x58, 0x2e, 0x13) / 255, color_b = fvec3(0xfb, 0x96, 0x32) / 255;
 
                                     par.AddFront(adjust(Particle{},
-                                        pos = pixel_pos + fvec2(-4 <= random.real() <= 4, -4 <= random.real() <= 4),
-                                        vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
+                                        pos = pixel_pos + fvec2(-4 <= rnd.real() <= 4, -4 <= rnd.real() <= 4),
+                                        vel = fvec2::dir(rnd.angle(), 0.05 <= rnd.real() <= 0.7),
                                         acc = fvec2(0,particle_gravity*2),
                                         current_time = 0,
                                         mid_time = 5,
-                                        max_time = 20 <= random.integer() <= 40,
-                                        size = 1 <= random.real() <= 3.5,
-                                        color = random.boolean() ? color_b : color_a,
+                                        max_time = 20 <= rnd.integer() <= 40,
+                                        size = 1 <= rnd.real() <= 3.5,
+                                        color = rnd.boolean() ? color_b : color_a,
                                         beta = 0.75
                                     ));
                                 }
@@ -1273,14 +1273,14 @@ namespace States
                                 constexpr fvec3 color_a = fvec3(0x58, 0x2e, 0x13) / 255, color_b = fvec3(0xfb, 0x96, 0x32) / 255;
 
                                 par.AddFront(adjust(Particle{},
-                                    pos = pixel_center + fvec2(-4 <= random.real() <= 4, -4 <= random.real() <= 4),
-                                    vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
+                                    pos = pixel_center + fvec2(-4 <= rnd.real() <= 4, -4 <= rnd.real() <= 4),
+                                    vel = fvec2::dir(rnd.angle(), 0.05 <= rnd.real() <= 0.7),
                                     acc = fvec2(0,particle_gravity*2),
                                     current_time = 0,
                                     mid_time = 5,
-                                    max_time = 20 <= random.integer() <= 40,
-                                    size = 1 <= random.real() <= 3.5,
-                                    color = random.boolean() ? color_b : color_a,
+                                    max_time = 20 <= rnd.integer() <= 40,
+                                    size = 1 <= rnd.real() <= 3.5,
+                                    color = rnd.boolean() ? color_b : color_a,
                                     beta = 0.75
                                 ));
                             }
@@ -1310,14 +1310,14 @@ namespace States
                             constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
 
                             par.AddBack(adjust(Particle{},
-                                pos = bullet.pos.Value() + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
-                                vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.3) + bullet.vel * 0.8,
+                                pos = bullet.pos.Value() + fvec2(-1 <= rnd.real() <= 1, -1 <= rnd.real() <= 1),
+                                vel = fvec2::dir(rnd.angle(), 0.05 <= rnd.real() <= 0.3) + bullet.vel * 0.8,
                                 acc = fvec2(-sign(bullet.vel.x) * 0.1,0),
                                 current_time = 0,
                                 mid_time = 5,
-                                max_time = 40 <= random.integer() <= 60,
-                                size = 1 <= random.real() <= 6,
-                                color = random.boolean() ? color_b : color_a,
+                                max_time = 40 <= rnd.integer() <= 60,
+                                size = 1 <= rnd.real() <= 6,
+                                color = rnd.boolean() ? color_b : color_a,
                                 beta = 0.75
                             ));
                         }
@@ -1345,14 +1345,14 @@ namespace States
                                 constexpr fvec3 color_a = fvec3(0xfb, 0x96, 0x32) / 255, color_b = fvec3(0xed, 0x07, 0x1e) / 255;
 
                                 par.AddFront(adjust(Particle{},
-                                    pos = point + fvec2(-1 <= random.real() <= 1, -1 <= random.real() <= 1),
-                                    vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.7),
+                                    pos = point + fvec2(-1 <= rnd.real() <= 1, -1 <= rnd.real() <= 1),
+                                    vel = fvec2::dir(rnd.angle(), 0.05 <= rnd.real() <= 0.7),
                                     acc = fvec2(0,particle_gravity),
                                     current_time = 0,
                                     mid_time = 5,
-                                    max_time = 40 <= random.integer() <= 60,
-                                    size = 1 <= random.real() <= 10,
-                                    color = random.boolean() ? color_b : color_a,
+                                    max_time = 40 <= rnd.integer() <= 60,
+                                    size = 1 <= rnd.real() <= 10,
+                                    color = rnd.boolean() ? color_b : color_a,
                                     beta = 0.75
                                 ));
                             }
@@ -1412,13 +1412,13 @@ namespace States
                         {
                             par.AddBack(adjust(Particle{},
                                 pos = powerup.pos.Value() with(y += powerup.hitbox.half_extent.y),
-                                vel = fvec2::dir(f_pi / 12 <= random.real() <= f_pi / 3, 0.05 <= random.real() <= 0.4) with(x *= random.sign(), y *= -1),
+                                vel = fvec2::dir(f_pi / 12 <= rnd.real() <= f_pi / 3, 0.05 <= rnd.real() <= 0.4) with(x *= rnd.sign(), y *= -1),
                                 acc = fvec2(0,particle_gravity),
                                 current_time = 0,
                                 mid_time = 5,
-                                max_time = 40 <= random.integer() <= 60,
-                                size = 1 <= random.real() <= 5,
-                                color = fvec3(0.85 <= random.real() <= 1)
+                                max_time = 40 <= rnd.integer() <= 60,
+                                size = 1 <= rnd.real() <= 5,
+                                color = fvec3(0.85 <= rnd.real() <= 1)
                             ));
                         }
                     }
@@ -1503,14 +1503,14 @@ namespace States
                                 for (int i = 0; i < 20; i++)
                                 {
                                     par.AddBack(adjust(Particle{},
-                                        pos = powerup.pos.Value() + ivec2(-7 <= random.real() <= 7, -7 <= random.real() <= 7),
-                                        vel = fvec2::dir(random.angle(), 0 <= random.real() <= 0.3),
+                                        pos = powerup.pos.Value() + ivec2(-7 <= rnd.real() <= 7, -7 <= rnd.real() <= 7),
+                                        vel = fvec2::dir(rnd.angle(), 0 <= rnd.real() <= 0.3),
                                         acc = fvec2(0,particle_gravity),
                                         current_time = 0,
                                         mid_time = 5,
-                                        max_time = 40 <= random.integer() <= 60,
-                                        size = 1 <= random.real() <= 5,
-                                        color = fvec3(0.7 <= random.real() <= 0.9)
+                                        max_time = 40 <= rnd.integer() <= 60,
+                                        size = 1 <= rnd.real() <= 5,
+                                        color = fvec3(0.7 <= rnd.real() <= 0.9)
                                     ));
                                 }
 
@@ -1534,16 +1534,16 @@ namespace States
                 {
                     ivec2 checkpoint = *it;
 
-                    if ((abs(checkpoint - w.camera_pos.Value()) < screen_size/2 + 32).all() && (0 <= random.integer() <= 4) == 0)
+                    if ((abs(checkpoint - w.camera_pos.Value()) < screen_size/2 + 32).all() && (0 <= rnd.integer() <= 4) == 0)
                     {
                         par.AddFront(adjust(Particle{},
-                            pos = checkpoint + ivec2(-3 <= random.real() <= 3, -3 <= random.real() <= 3),
-                            vel = fvec2::dir(random.angle(), 0 <= random.real() <= 0.3),
+                            pos = checkpoint + ivec2(-3 <= rnd.real() <= 3, -3 <= rnd.real() <= 3),
+                            vel = fvec2::dir(rnd.angle(), 0 <= rnd.real() <= 0.3),
                             current_time = 0,
                             mid_time = 5,
-                            max_time = 40 <= random.integer() <= 60,
-                            size = 2 <= random.real() <= 6,
-                            color = fvec3(0.5 <= random.real() <= 0.75, 1, 0)
+                            max_time = 40 <= rnd.integer() <= 60,
+                            size = 2 <= rnd.real() <= 6,
+                            color = fvec3(0.5 <= rnd.real() <= 0.75, 1, 0)
                         ));
                     }
 
@@ -1553,14 +1553,14 @@ namespace States
                         for (int i = 0; i < 20; i++)
                         {
                             par.AddFront(adjust(Particle{},
-                                pos = checkpoint + ivec2(-3 <= random.real() <= 3, -3 <= random.real() <= 3),
-                                vel = fvec2::dir(random.angle(), 0 <= random.real() <= 0.5),
+                                pos = checkpoint + ivec2(-3 <= rnd.real() <= 3, -3 <= rnd.real() <= 3),
+                                vel = fvec2::dir(rnd.angle(), 0 <= rnd.real() <= 0.5),
                                 acc = fvec2(0,particle_gravity),
                                 current_time = 0,
                                 mid_time = 5,
-                                max_time = 40 <= random.integer() <= 60,
-                                size = 1 <= random.real() <= 4,
-                                color = fvec3(0.5 <= random.real() <= 0.75, 1, 0)
+                                max_time = 40 <= rnd.integer() <= 60,
+                                size = 1 <= rnd.real() <= 4,
+                                color = fvec3(0.5 <= rnd.real() <= 0.75, 1, 0)
                             ));
                         }
 
@@ -1617,16 +1617,16 @@ namespace States
 
                         for (int i = 0; i < 30; i++)
                         {
-                            float t = 0 <= random.real() <= 1;
+                            float t = 0 <= rnd.real() <= 1;
 
                             par.AddFront(adjust(Particle{},
-                                pos = p.pos.Value() + fvec2(-4 <= random.real() <= 4, -8 <= random.real() <= 8),
-                                vel = fvec2::dir(random.angle(), 0.05 <= random.real() <= 0.8),
+                                pos = p.pos.Value() + fvec2(-4 <= rnd.real() <= 4, -8 <= rnd.real() <= 8),
+                                vel = fvec2::dir(rnd.angle(), 0.05 <= rnd.real() <= 0.8),
                                 acc = fvec2(0,-particle_gravity),
                                 current_time = 0,
                                 mid_time = 5,
-                                max_time = 60 <= random.integer() <= 90,
-                                size = 1 <= random.real() <= 8,
+                                max_time = 60 <= rnd.integer() <= 90,
+                                size = 1 <= rnd.real() <= 8,
                                 color = (fmat3::rotate(fvec3(1,1,1), (t*2-1) * f_pi / 6) * fvec3(1,0,0)) * (0.5 + t * 0.5),
                                 beta = 0.75
                             ));
@@ -1751,7 +1751,7 @@ namespace States
             { // Checkpoints
                 for (ivec2 pos : w.checkpoints)
                 {
-                    fvec3 color = fvec3(0.5 <= random.real() <= 0.75, 1, 0);
+                    fvec3 color = fvec3(0.5 <= rnd.real() <= 0.75, 1, 0);
 
                     r << r.translate(pos - w.camera_pos.Value()) * r.rotate(f_pi / 4)
                        * r.UntexturedQuad(ivec2(9)).Centered().Color(color / 3);
